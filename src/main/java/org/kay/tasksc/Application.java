@@ -26,8 +26,8 @@ import org.web3j.tx.gas.DefaultGasProvider;
 
 public class Application {
 
-    public static final String TOKEN_ADDRESS = "0x5520770f57e02cca633d6abb2e266b70ce8fd82b";
-    public static final String SC_ADDRESS = "0x6232f1613542943224bea102decc502bb5d0fced";
+    public static final String TOKEN_ADDRESS = "0x49bf27ec8b831846da0362dd2e490b338ff93b95";
+    public static final String SC_ADDRESS = "0x9629fd449a7d45cc3fa785e54b56fc91ae6cd6fe";
 
     private static final Logger log = LoggerFactory.getLogger(Application.class);
 
@@ -65,6 +65,31 @@ public class Application {
         log.info("View SC contract at https://rinkeby.etherscan.io/address/" + scContractAlice.getContractAddress());
         log.info("View Token contract at https://rinkeby.etherscan.io/address/" + tokenContract.getContractAddress());
 
+
+//        CooperativeCloseMessage message = new CooperativeCloseMessage(
+//                                                    256,
+//                                                    3,
+//                                                    9);
+//        Sign.SignatureData sigAlice = signCooperativeCloseMessage(
+//                message,
+//                credentialsAlice.getEcKeyPair());
+//
+//        Sign.SignatureData sigBob = signCooperativeCloseMessage(
+//                message,
+//                credentialsBob.getEcKeyPair());
+//
+//        byte[] bytesSigAlice = sigDataToBytes(sigAlice);
+//        byte[] bytesSigBob = sigDataToBytes(sigBob);
+//
+//
+//        log.info(Hex.toHexString(bytesSigAlice));
+//        log.info(Hex.toHexString(bytesSigBob));
+
+//        0: address: alice 0xd7426AfEeE4b44FE64D862210cfB9AaCa7D06906
+//        1: address: bob 0xbbc6a41414610BD245F9905B387108d29Bcc0b9c
+
+
+
         // Open channel
         Disposable disposable = tokenContract
                 .approve(
@@ -84,10 +109,10 @@ public class Application {
                                         receipt1 -> {
                                             //get newly created channel info
                                             int channelID = Integer.parseInt(
-                                                    receipt1.getLogs().get(1).getData(),16);
-                                            log.info(String.format("Channel %s: %s",
-                                                    channelID,
-                                                    scContractAlice.channels(BigInteger.valueOf(0)).send().toString()));
+                                                    receipt1.getLogs().get(1).getTopics().get(1).substring(2),16);
+                                            log.info("Channel " +
+                                                    channelID + ": " +
+                                                    scContractAlice.channels(BigInteger.valueOf(channelID)).send().toString());
 
                                             // Alice generates receipt sending 1 to Bob
                                             Receipt receipt = new Receipt(
@@ -106,8 +131,10 @@ public class Application {
                                                     credentialsAlice.getAddress(),
                                                     receipt.getChannelID(),
                                                     receipt.getNonce(),
-                                                    receipt.getaBalance(),
-                                                    receipt.getbBalance());
+                                                    1,
+                                                    1);
+
+                                            log.info(isValid ? "Receipt is valid" : "Receipt is invalid");
 
                                             //Try to do cooperative close
                                             CooperativeCloseMessage message = new CooperativeCloseMessage(
@@ -134,7 +161,8 @@ public class Application {
                                                     bytesSigBob)
                                                     .flowable()
                                                     .subscribe(
-                                                            receipt2 -> log.info(receipt2.toString()),
+                                                            receipt2 -> //closing is successful
+                                                                    log.info(receipt2.toString()),
                                                             error -> log.info(error.toString())
                                                     );
                                         },
@@ -144,28 +172,29 @@ public class Application {
     }
 
     private Sign.SignatureData signReceipt(Receipt receipt, ECKeyPair keys) {
-        byte[] message = ByteBuffer.allocate(4)
+        byte[] message = ByteBuffer.allocate(128)
                 .putInt(receipt.getChannelID())
                 .putInt(receipt.getNonce())
                 .putInt(receipt.getaBalance())
                 .putInt(receipt.getbBalance())
                 .array();
-        return Sign.signMessage(message, keys);
+
+        return Sign.signMessage(Hash.sha3(message), keys);
     }
 
     private Sign.SignatureData signCooperativeCloseMessage(CooperativeCloseMessage message, ECKeyPair keys) {
-        byte[] signedMessage = ByteBuffer.allocate(4)
-                .putInt(message.getChannelID())
-                .putInt(message.getaBalance())
-                .putInt(message.getbBalance())
+        byte[] signedMessage = ByteBuffer.allocate(96)
+                .put(ByteBuffer.allocate(32).put(new byte[28]).putInt(message.getChannelID()).array())
+                .put(ByteBuffer.allocate(32).put(new byte[28]).putInt(message.getaBalance()).array())
+                .put(ByteBuffer.allocate(32).put(new byte[28]).putInt(message.getbBalance()).array())
                 .array();
-        return Sign.signMessage(signedMessage, keys);
+        return Sign.signMessage(Hash.sha3(signedMessage), keys);
     }
 
     private String extractAddressFromReceipt(Receipt receipt,
                                 Sign.SignatureData signature) {
 
-        byte[] message = ByteBuffer.allocate(4)
+        byte[] message = ByteBuffer.allocate(128)
                 .putInt(receipt.getChannelID())
                 .putInt(receipt.getNonce())
                 .putInt(receipt.getaBalance())
@@ -173,7 +202,7 @@ public class Application {
                 .array();
         BigInteger pubk;
         try {
-            pubk = Sign.signedMessageToKey(message, signature);
+            pubk = Sign.signedMessageToKey(Hash.sha3(message), signature);
         } catch (SignatureException e){
             pubk = BigInteger.ZERO;
         }
@@ -187,16 +216,17 @@ public class Application {
                                    int reqNonce,
                                    int reqReceivedBalance,
                                    int reqChannelBalance) {
-        return reqNonce == receipt.getNonce() &&
-                reqChannelID == receipt.getChannelID() &&
-                reqReceivedBalance == receipt.getbBalance() &&
-                reqChannelBalance == (receipt.getaBalance() + receipt.getbBalance()) &&
-                reqSigner.equals(extractAddressFromReceipt(receipt, signature)
-        );
+        String signer = "0x" + extractAddressFromReceipt(receipt, signature);
+        int channelBalance = receipt.getaBalance() + receipt.getbBalance();
+        return reqNonce == receipt.getNonce()
+                && reqChannelID == receipt.getChannelID()
+                && reqReceivedBalance == receipt.getbBalance()
+                && reqChannelBalance == channelBalance
+                && reqSigner.equals(signer);
     }
 
     private byte[] sigDataToBytes(Sign.SignatureData data) {
-        return ByteBuffer.allocate(4)
+        return ByteBuffer.allocate(65)
                 .put(data.getR())
                 .put(data.getS())
                 .put(data.getV())

@@ -4,16 +4,19 @@ import java.io.File;
 import java.math.BigInteger;
 
 import io.reactivex.disposables.Disposable;
+import org.kay.tasksc.contracts.Cct;
 import org.kay.tasksc.contracts.Sc;
 import org.kay.tasksc.contracts.ScGasProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.web3j.crypto.Credentials;
+import org.web3j.crypto.TransactionEncoder;
 import org.web3j.crypto.WalletUtils;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.tuples.generated.Tuple5;
+import org.web3j.tx.gas.DefaultGasProvider;
 
 
 public class Application {
@@ -46,28 +49,41 @@ public class Application {
         log.info(credentialsAlice.getAddress());
         log.info(credentialsBob.getAddress());
 
-        Sc contract = Sc.load(
-                SC_ADDRESS, web3j, credentialsAlice, new ScGasProvider() );
+        Sc scContractAlice = Sc.load(
+                SC_ADDRESS, web3j, credentialsAlice, new DefaultGasProvider() );
+        Sc scContractBob = Sc.load(
+                SC_ADDRESS, web3j, credentialsBob, new DefaultGasProvider() );
+        Cct tokenContract = Cct.load(
+                TOKEN_ADDRESS, web3j, credentialsAlice, new DefaultGasProvider() );
         log.info("Smart contract setup");
 
-        String contractAddress = contract.getContractAddress();
-        log.info("View contract at https://rinkeby.etherscan.io/address/" + contractAddress);
-
-        Tuple5 channelData = contract.channels(BigInteger.ONE).send();
-        log.info("Channel 1: \\n" + channelData.toString());
+        log.info("View SC contract at https://rinkeby.etherscan.io/address/" + scContractAlice.getContractAddress());
 
         // Open channel
-        Disposable disposable = contract.openChannel(
-                credentialsBob.getAddress(),
-                BigInteger.ONE,
-                BigInteger.valueOf(1))
+        Disposable disposable = tokenContract
+                .approve(scContractAlice.getContractAddress(), BigInteger.valueOf(1))
                 .flowable()
                 .subscribe(
-                        transactionReceipt1 -> log.info(transactionReceipt1.toString()),
-                        error -> log.info(error.toString())
+                        receipt -> log.info(receipt.toString()),
+                        error -> log.info(error.toString()),
+                        // tokens approved
+                        () -> scContractAlice.openChannel(
+                                credentialsBob.getAddress(),
+                                BigInteger.ONE,
+                                BigInteger.valueOf(0))
+                                .flowable()
+                                .subscribe(
+                                        receipt1 -> log.info(receipt1.toString()),
+                                        error -> log.info(error.toString()),
+                                        // channel opened
+                                        () -> {
+                                            // Alice generates receipt
+                                        }
+                                )
                 );
 
-//        disposable.dispose();
+        Tuple5 channelData = scContractAlice.channels(BigInteger.valueOf(0)).send();
+        log.info("Channel 1: \\n" + channelData.toString());
 
         //validate channel
 

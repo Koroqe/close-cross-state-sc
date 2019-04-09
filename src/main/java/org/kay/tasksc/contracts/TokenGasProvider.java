@@ -6,7 +6,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.math.BigInteger;
 
-public class ScGasProvider implements ContractGasProvider {
+public class TokenGasProvider implements ContractGasProvider {
 
     public static final BigInteger GAS_PRICE = DefaultGasProvider.GAS_PRICE;
     public static final BigInteger GAS_LIMIT = BigInteger.valueOf(4_300_000);

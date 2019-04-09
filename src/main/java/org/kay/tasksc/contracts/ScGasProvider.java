@@ -1,4 +1,4 @@
-package org.kay.tasksc;
+package org.kay.tasksc.contracts;
 
 import org.web3j.tx.gas.ContractGasProvider;
 import org.web3j.tx.gas.DefaultGasProvider;

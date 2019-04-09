@@ -3,13 +3,15 @@ package org.kay.tasksc;
 import java.io.File;
 import java.math.BigInteger;
 
+import io.reactivex.disposables.Disposable;
+import org.kay.tasksc.contracts.Sc;
+import org.kay.tasksc.contracts.ScGasProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.web3j.crypto.Credentials;
 import org.web3j.crypto.WalletUtils;
 import org.web3j.protocol.Web3j;
-import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.tuples.generated.Tuple5;
 
@@ -55,15 +57,19 @@ public class Application {
         log.info("Channel 1: \\n" + channelData.toString());
 
         // Open channel
-        TransactionReceipt transactionReceipt = contract.openChannel(
+        Disposable disposable = contract.openChannel(
                 credentialsBob.getAddress(),
                 BigInteger.ONE,
-                BigInteger.valueOf(0))
-                .send();
+                BigInteger.valueOf(1))
+                .flowable()
+                .subscribe(
+                        transactionReceipt1 -> log.info(transactionReceipt1.toString()),
+                        error -> log.info(error.toString())
+                );
 
-        log.info(transactionReceipt.toString());
+//        disposable.dispose();
 
         //validate channel
-        
+
     }
 }

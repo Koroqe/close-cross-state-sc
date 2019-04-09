@@ -1,4 +1,4 @@
-package org.kay.tasksc;
+package org.kay.tasksc.contracts;
 
 import io.reactivex.Flowable;
 import java.math.BigInteger;

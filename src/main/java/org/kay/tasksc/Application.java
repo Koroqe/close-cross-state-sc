@@ -65,31 +65,6 @@ public class Application {
         log.info("View SC contract at https://rinkeby.etherscan.io/address/" + scContractAlice.getContractAddress());
         log.info("View Token contract at https://rinkeby.etherscan.io/address/" + tokenContract.getContractAddress());
 
-
-//        CooperativeCloseMessage message = new CooperativeCloseMessage(
-//                                                    256,
-//                                                    3,
-//                                                    9);
-//        Sign.SignatureData sigAlice = signCooperativeCloseMessage(
-//                message,
-//                credentialsAlice.getEcKeyPair());
-//
-//        Sign.SignatureData sigBob = signCooperativeCloseMessage(
-//                message,
-//                credentialsBob.getEcKeyPair());
-//
-//        byte[] bytesSigAlice = sigDataToBytes(sigAlice);
-//        byte[] bytesSigBob = sigDataToBytes(sigBob);
-//
-//
-//        log.info(Hex.toHexString(bytesSigAlice));
-//        log.info(Hex.toHexString(bytesSigBob));
-
-//        0: address: alice 0xd7426AfEeE4b44FE64D862210cfB9AaCa7D06906
-//        1: address: bob 0xbbc6a41414610BD245F9905B387108d29Bcc0b9c
-
-
-
         // Open channel
         Disposable disposable = tokenContract
                 .approve(
